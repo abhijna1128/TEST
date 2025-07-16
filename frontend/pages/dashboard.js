@@ -432,6 +432,23 @@ useEffect(() => {
       filedBy: "sales.team__ and others",
       accordion: [],
       image: "https://png.pngtree.com/thumb_back/fh260/background/20221006/pngtree-money-concept-quotation-on-chalkboard-background-learn-investment-market-photo-image_22951928.jpg"
+    },
+    {
+      name: "Purchase Order",
+      path: "/purchase-order/home",
+      icon: <FaFileInvoice className="text-white" />,
+      gradient: "bg-gradient-to-r from-cyan-700/40 to-slate-900/60",
+      description: "Manage purchase orders",
+      imageDescription: "Purchase Order Management",
+      stats: {
+        main: dashboardData.purchaseOrders || 0,
+      },
+      filedBy: "Purchase Order Team",
+      accordion: [
+        { title: "Order Management", content: "Track and manage purchase orders." },
+        { title: "Reports", content: "Generate purchase order reports." }
+      ],
+      image: "https://img.freepik.com/free-vector/purchase-order-concept-illustration_114360-2806.jpg"
     }
   ];
 
@@ -441,7 +458,7 @@ useEffect(() => {
     { title: "Inventory Items", value: dashboardData.stocks, change: 5, isPositive: true, icon: <FaBoxOpen className="text-white" />, bgColor: "bg-gradient-to-r from-emerald-600 via-emerald-800 to-teal-950" },
     { title: "Total Quotations", value: dashboardData.lastQuoteId, change: 16, isPositive: true, icon: <FaFileContract className="text-white" />, bgColor: "bg-gradient-to-r from-violet-600 via-indigo-800 to-purple-950" },
     { title: "Revenue", value: `₹${dashboardData.stats.revenue?.toLocaleString() || '0'}`, change: 23, isPositive: true, icon: <FaMoneyBillWave className="text-white" />, bgColor: "bg-gradient-to-r from-green-600 via-green-800 to-green-950" },
-    { title: "Expenses", value: `₹${dashboardData.stats.expenses?.toLocaleString() || '0'}`, change: 5, isPositive: false, icon: <FaFileInvoiceDollar className="text-white" />, bgColor: "bg-gradient-to-r from-purple-600 via-indigo-700 to-rose-1000" }
+    { title: "Expenses", value: `₹${dashboardData.stats.expenses?.toLocaleString() || '0'}`, change: 5, isPositive: false, icon: <FaFileInvoiceDollar className="text-white" />, bgColor: "bg-gradient-to-r from-purple-600 via-indigo-700 to-rose-1000" },
   ];
 
   const [flipped, setFlipped] = useState(Array(features.length).fill(false));
