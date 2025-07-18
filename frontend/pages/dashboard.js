@@ -803,15 +803,15 @@ export default function Dashboard() {
 <AnimatePresence>
   <motion.div
     className="fixed left-0 top-0 h-full z-40 bg-black border-r border-gray-700 flex flex-col justify-between"
-    initial={false}
-    animate={{ width: isSidebarOpen ? 200 : 64 }}
+    initial={{ width: 64 }}
+    whileHover={{ width: 200 }}
     transition={{
       type: "spring",
-      stiffness: 260,
-      damping: 24,
+      stiffness: 300,
+      damping: 30,
     }}
-    onMouseEnter={() => setIsSidebarOpen(true)}
     onMouseLeave={() => setIsSidebarOpen(false)}
+    onMouseEnter={() => setIsSidebarOpen(true)}
   >
     {/* Logo / Brand */}
     <div className="p-4 flex items-center">
@@ -821,57 +821,163 @@ export default function Dashboard() {
       >
         💧
       </motion.div>
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.span
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            className="ml-3 text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500"
-          >
-            Ukshati
-          </motion.span>
-        )}
-      </AnimatePresence>
+      {isSidebarOpen && (
+        <motion.span
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="ml-3 text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500"
+        >
+          Ukshati
+        </motion.span>
+      )}
     </div>
 
     {/* Navigation Links */}
     <nav className="flex-1 px-2 space-y-2">
-      {[
-        { href: "/dashboard", label: "Dashboard", icon: <FaCogs /> },
-        { href: "/crm/home", label: "CRM", icon: <FaUsers /> },
-        { href: "/ims/home", label: "IMS", icon: <FaBoxOpen /> },
-        { href: "/quotation/home", label: "Quotation", icon: <FaFileContract /> },
-        { href: "/billing/billing", label: "Billing", icon: <FaFileInvoiceDollar /> },
-        { href: "/expense/home", label: "Expense", icon: <FaMoneyBillWave /> },
-        { href: "/purchase-order/home", label: "Purchase Order", icon: <FaFileInvoice /> },
-        { href: "/crm/reminders", label: "Reminders", icon: <FaCalendar /> },
-      ].map(({ href, label, icon }, idx) => (
-        <Link
-          key={idx}
-          href={href}
-          className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
-        >
-          <span className="text-cyan-400 group-hover:text-white transition-colors">
-            {icon}
-          </span>
-          <AnimatePresence>
-            {isSidebarOpen && (
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="ml-3 text-sm text-gray-200 whitespace-nowrap"
-              >
-                {label}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </Link>
-      ))}
-    </nav>
+  <Link
+    href="/dashboard"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaCogs className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        Dashboard
+      </motion.span>
+    )}
+  </Link>
 
+  <Link
+    href="/crm/home"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaUsers className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        CRM
+      </motion.span>
+    )}
+  </Link>
 
+  <Link
+    href="/ims/home"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaBoxOpen className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        IMS
+      </motion.span>
+    )}
+  </Link>
+
+  <Link
+    href="/quotation/home"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaFileContract className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        Quotation
+      </motion.span>
+    )}
+  </Link>
+
+  <Link
+    href="/billing/billing"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaFileInvoiceDollar className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        Billing
+      </motion.span>
+    )}
+  </Link>
+
+  <Link
+    href="/expense/home"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaMoneyBillWave className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        Expense
+      </motion.span>
+    )}
+  </Link>
+
+  <Link
+    href="/purchase-order/home"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaFileInvoice className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        Purchase Order
+      </motion.span>
+    )}
+  </Link>
+
+  <Link
+    href="/crm/reminders"
+    className="group flex items-center px-3 py-2 text-gray-300 rounded-md hover:bg-gray-700/80 transition-colors"
+  >
+    <span className="text-cyan-400 group-hover:text-white transition-colors">
+      <FaCalendar className="w-5 h-5" />
+    </span>
+    {isSidebarOpen && (
+      <motion.span
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="ml-3 text-sm text-gray-200 whitespace-nowrap"
+      >
+        Reminders
+      </motion.span>
+    )}
+  </Link>
+</nav>
 
 
     {/* User Profile */}
