@@ -1,0 +1,8 @@
+FROM mysql:8.0
+
+# Copy initialization scripts
+COPY ./db/ /docker-entrypoint-initdb.d/
+COPY ./backup.sh /backup.sh
+
+# Expose MySQL port (optional)
+EXPOSE 3306
