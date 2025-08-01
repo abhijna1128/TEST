@@ -1,22 +1,18 @@
 name: 🚀 CD Pipeline
 
 on:
-  # Trigger CD when CI finishes (regardless of how it's triggered)
   workflow_run:
-    workflows: ["🔄 CI Pipeline"]  # Must match CI 'name:' exactly
+    workflows: ["🔄 CI Pipeline"]  # Must match CI workflow name exactly
     types:
       - completed
     branches:
-      - dev
+      - dev   # Trigger only when CI runs on dev branch
 
-# Deploy job
 jobs:
   deploy:
     name: 🚀 Deploy
     runs-on: ubuntu-latest
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'dev'
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: ✅ CD Trigger Test
@@ -28,15 +24,30 @@ jobs:
       - name: 🔧 Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # --- DEBUG KEY LENGTH ---
+      - name: 🔑 Debug private key length
+        run: |
+          echo "Checking DEV_PI_KEY size..."
+          echo "${{ secrets.DEV_PI_KEY }}" | wc -c
+
+      # --- SETUP SSH KEY ---
       - name: 🔑 Setup SSH Key for Raspberry Pi
         run: |
+          if [ -z "${{ secrets.DEV_PI_KEY }}" ]; then
+            echo "❌ DEV_PI_KEY is empty!"
+            exit 1
+          else
+            echo "✅ DEV_PI_KEY exists"
+          fi
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEV_PI_KEY }}" > ~/.ssh/id_rsa
+          # Remove Windows \r characters
+          echo "${{ secrets.DEV_PI_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts
 
       - name: 🔍 Test SSH Connection
-        run: ssh -o StrictHostKeyChecking=no -p 2225 ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo 'Connected successfully!'"
+        run: ssh -o StrictHostKeyChecking=no -p 2225 \
+          ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo 'Connected successfully!'"
 
       - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v3
@@ -75,8 +86,8 @@ jobs:
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}
 
           echo "🔄 Updating docker-compose.yml with new image tags..."
-          sed -i 's|image: .ukshati-frontend.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
-          sed -i 's|image: .ukshati-database.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
+          sed -i 's|image: .*ukshati-frontend.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
+          sed -i 's|image: .*ukshati-database.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
 
           echo "🚀 Starting updated containers..."
           docker-compose up -d
@@ -85,8 +96,11 @@ jobs:
           echo "✅ Deployment completed!"
           EOF
 
-          scp -o StrictHostKeyChecking=no -P 2225 deploy.sh ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/
-          ssh -o StrictHostKeyChecking=no -p 2225 ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "cd /home/${{ secrets.DEV_PI_USER }}/ukshati && chmod +x deploy.sh && ./deploy.sh"
+          scp -o StrictHostKeyChecking=no -P 2225 deploy.sh \
+            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/
+          ssh -o StrictHostKeyChecking=no -p 2225 \
+            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} \
+            "cd /home/${{ secrets.DEV_PI_USER }}/ukshati && chmod +x deploy.sh && ./deploy.sh"
 
       - name: 📢 Notify Success
         if: success()
