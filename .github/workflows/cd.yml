@@ -1,26 +1,22 @@
 name: 🚀 CD Pipeline
 
 on:
-  # Trigger CD when CI finishes (regardless of how it's triggered)
   workflow_run:
-    workflows: ["🔄 CI Pipeline"]  # Must match CI 'name:' exactly
+    workflows: ["🔄 CI Pipeline"]  # Must match CI workflow name exactly
     types:
       - completed
     branches:
-      - dev
+      - main   # Trigger only when CI runs on main branch
 
-# Deploy job
 jobs:
   deploy:
     name: 🚀 Deploy
     runs-on: ubuntu-latest
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'dev'
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: ✅ CD Trigger Test
-        run: echo "CD triggered via workflow_run on dev branch!"
+        run: echo "CD triggered via workflow_run on main branch!"
 
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -75,8 +71,8 @@ jobs:
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}
 
           echo "🔄 Updating docker-compose.yml with new image tags..."
-          sed -i 's|image: .ukshati-frontend.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
-          sed -i 's|image: .ukshati-database.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
+          sed -i 's|image: .*ukshati-frontend.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
+          sed -i 's|image: .*ukshati-database.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
 
           echo "🚀 Starting updated containers..."
           docker-compose up -d
