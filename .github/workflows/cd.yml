@@ -39,8 +39,9 @@ jobs:
           fi
           echo "✅ DEV_PI_KEY exists"
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEV_PI_KEY }}" > ~/.ssh/id_rsa
+          printf "%s\n" "${{ secrets.DEV_PI_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          wc -c < ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts
 
       - name: 🔍 Test SSH Connection
