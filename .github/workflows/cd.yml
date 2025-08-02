@@ -2,11 +2,11 @@ name: 🚀 CD Pipeline
 
 on:
   workflow_run:
-    workflows: ["🔄 CI Pipeline"]  # Must match CI workflow name exactly
+    workflows: ["🔄 CI Pipeline"]
     types:
       - completed
     branches:
-      - dev   # Trigger only when CI runs on dev branch
+      - dev
 
 jobs:
   deploy:
@@ -36,12 +36,10 @@ jobs:
           if [ -z "${{ secrets.DEV_PI_KEY }}" ]; then
             echo "❌ DEV_PI_KEY is empty!"
             exit 1
-          else
-            echo "✅ DEV_PI_KEY exists"
           fi
+          echo "✅ DEV_PI_KEY exists"
           mkdir -p ~/.ssh
-          # Remove Windows \r characters
-          echo "${{ secrets.DEV_PI_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          echo "${{ secrets.DEV_PI_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts
 
@@ -62,7 +60,6 @@ jobs:
             -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }} \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:latest \
             --push .
-
           echo "🐳 Building multi-arch MySQL image (x86_64 + ARM64)..."
           docker buildx build --platform linux/amd64,linux/arm64 \
             -f Dockerfile.mysql \
@@ -75,27 +72,17 @@ jobs:
           echo "🍓 Deploying to Raspberry Pi..."
           cat > deploy.sh << 'EOF'
           #!/bin/bash
-          echo "🔄 Stopping existing containers..."
           docker-compose down || true
-
-          echo "🧹 Cleaning up old images..."
           docker image prune -f
-
-          echo "📥 Pulling latest images..."
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}
-
-          echo "🔄 Updating docker-compose.yml with new image tags..."
-          sed -i 's|image: .*ukshati-frontend.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
-          sed -i 's|image: .*ukshati-database.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
-
-          echo "🚀 Starting updated containers..."
+          sed -i 's|image: .ukshati-frontend.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
+          sed -i 's|image: .ukshati-database.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
           docker-compose up -d
           sleep 30
           docker-compose ps
           echo "✅ Deployment completed!"
           EOF
-
           scp -o StrictHostKeyChecking=no -P 2225 deploy.sh \
             ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/
           ssh -o StrictHostKeyChecking=no -p 2225 \
