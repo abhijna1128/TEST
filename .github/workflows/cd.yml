@@ -2,98 +2,120 @@ name: 🚀 CD Pipeline
 
 on:
   workflow_run:
-    workflows: ["🔄 CI Pipeline"]
+    workflows: ["CI Pipeline"]  # Must exactly match your CI workflow name
     types:
       - completed
     branches:
-      - dev
+      - dev  # Trigger only when CI runs on dev branch
 
 jobs:
   deploy:
-    name: 🚀 Deploy
+    name: Deploy
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: ✅ CD Trigger Test
+      - name: CD Trigger Test
         run: echo "CD triggered via workflow_run on dev branch!"
 
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔧 Setup Docker Buildx
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       # --- DEBUG KEY LENGTH ---
-      - name: 🔑 Debug private key length
+      - name: Debug private key length
         run: |
           echo "Checking DEV_PI_KEY size..."
           echo "${{ secrets.DEV_PI_KEY }}" | wc -c
 
       # --- SETUP SSH KEY ---
-      - name: 🔑 Setup SSH Key for Raspberry Pi
+      - name: Setup SSH Key for Raspberry Pi
         run: |
           if [ -z "${{ secrets.DEV_PI_KEY }}" ]; then
             echo "❌ DEV_PI_KEY is empty!"
             exit 1
+          else
+            echo "✅ DEV_PI_KEY exists"
           fi
-          echo "✅ DEV_PI_KEY exists"
           mkdir -p ~/.ssh
+          # Use printf to preserve multiline formatting exactly
           printf "%s\n" "${{ secrets.DEV_PI_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          wc -c < ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts
+          # Add Pi host with correct port to known_hosts to avoid SSH prompt
+          ssh-keyscan -p 2225 -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts
 
-      - name: 🔍 Test SSH Connection
-        run: ssh -o StrictHostKeyChecking=no -p 2225 \
-          ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo 'Connected successfully!'"
+      # --- TEST SSH CONNECTION ---
+      - name: Test SSH Connection
+        run: ssh -vvv -o StrictHostKeyChecking=no -p 2225 ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo 'Connected successfully!'"
 
-      - name: 🔐 Login to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: 🏗 Build Multi-Architecture Images
+      - name: Build Multi-Architecture Images
         run: |
-          echo "🐳 Building multi-arch frontend image (x86_64 + ARM64)..."
+          echo "Building multi-arch frontend image (x86_64 + ARM64)..."
           docker buildx build --platform linux/amd64,linux/arm64 \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }} \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:latest \
             --push .
-          echo "🐳 Building multi-arch MySQL image (x86_64 + ARM64)..."
+
+          echo " Building multi-arch MySQL image (x86_64 + ARM64)..."
           docker buildx build --platform linux/amd64,linux/arm64 \
             -f Dockerfile.mysql \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }} \
             -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:latest \
             --push .
 
-      - name: 🚀 Deploy to Raspberry Pi
+      - name: Deploy to Raspberry Pi
         run: |
-          echo "🍓 Deploying to Raspberry Pi..."
+          echo " Deploying to Raspberry Pi..."
+
+          # Create deployment script on the runner
           cat > deploy.sh << 'EOF'
           #!/bin/bash
+          set -euxo pipefail
+
+          echo " Stopping existing containers..."
           docker-compose down || true
+
+          echo " Cleaning up old images..."
           docker image prune -f
+
+          echo " Pulling latest images..."
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}
-          sed -i 's|image: .ukshati-frontend.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
-          sed -i 's|image: .ukshati-database.|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
+
+          echo "Updating docker-compose.yml with new image tags..."
+          sed -i 's|image: .*ukshati-frontend.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
+          sed -i 's|image: .*ukshati-database.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
+
+          echo " Starting updated containers..."
           docker-compose up -d
+
+          echo " Waiting 30 seconds for services to stabilize..."
           sleep 30
+
+          echo " Service status:"
           docker-compose ps
+
           echo "✅ Deployment completed!"
           EOF
-          scp -o StrictHostKeyChecking=no -P 2225 deploy.sh \
-            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/
-          ssh -o StrictHostKeyChecking=no -p 2225 \
-            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} \
-            "cd /home/${{ secrets.DEV_PI_USER }}/ukshati && chmod +x deploy.sh && ./deploy.sh"
 
-      - name: 📢 Notify Success
+          # Copy deploy script to Raspberry Pi
+          scp -o StrictHostKeyChecking=no -P 2225 deploy.sh ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/deploy.sh
+
+          # Run deploy script remotely on the Pi
+          ssh -o StrictHostKeyChecking=no -p 2225 ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "bash /home/${{ secrets.DEV_PI_USER }}/deploy.sh"
+
+      - name:  Notify Success
         if: success()
         run: echo "🎉 Deployment completed successfully!"
 
-      - name: 📢 Notify Failure
+      - name:  Notify Failure
         if: failure()
         run: echo "❌ Deployment failed!"
