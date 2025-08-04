@@ -131,7 +131,7 @@ const EmployeeModal = ({ isOpen, onClose, onSubmit, formData, setFormData, loadi
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
               required
             >
-              <option value="">Select Employee type</option>
+              <option value="">Select Employee</option>
               <option value="admin">Admin</option>
               <option value="employee">Employee</option>
             </select>
