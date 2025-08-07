@@ -8,6 +8,7 @@ import {
   FiFileText,
   FiCheckCircle,
 } from "react-icons/fi";
+import Select from "react-select";
 import BackButton from "@/components/BackButton";
 import ScrollToTopButton from "@/components/scrollup";
 import { FormSkeleton } from "@/components/skeleton";
@@ -21,6 +22,8 @@ export default function AddExpense() {
   const [amount, setAmount] = useState("");
   const [comments, setComments] = useState("");
   const [projects, setProjects] = useState([]);
+  const [projectOptions, setProjectOptions] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +35,7 @@ export default function AddExpense() {
           setEmployeeId(user.id); // Autofill employeeId from logged-in user
 
           // Simulate data loading delay (remove in production if not needed)
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise((resolve) => setTimeout(resolve, 300));
 
           setLoading(false);
         } else {
@@ -61,15 +64,33 @@ export default function AddExpense() {
             (project) => project.status === projectStatus
           );
           setProjects(filteredProjects);
+
+          // Format projects for react-select
+          const formattedOptions = filteredProjects.map((project) => ({
+            value: project.pid,
+            label: `${project.pname} (ID: ${project.pid})`,
+            project: project, // Store full project data for reference
+          }));
+          setProjectOptions(formattedOptions);
         })
         .catch((err) => {
           console.error("Error fetching projects:", err);
           setProjects([]);
+          setProjectOptions([]);
         });
     } else {
       setProjects([]);
+      setProjectOptions([]);
+      setSelectedProject(null);
+      setProjectId("");
     }
   }, [projectStatus]);
+
+  // Handle project selection from react-select
+  const handleProjectChange = (selectedOption) => {
+    setSelectedProject(selectedOption);
+    setProjectId(selectedOption ? selectedOption.value : "");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -85,12 +106,79 @@ export default function AddExpense() {
       setDate("");
       setProjectStatus("");
       setProjectId("");
+      setSelectedProject(null);
       setAmount("");
       setComments("");
       setProjects([]);
+      setProjectOptions([]);
     } else {
       setMessage(data.message || "Failed to add expense");
     }
+  };
+
+  // Custom styles for react-select to match the existing design
+  const customSelectStyles = {
+    control: (base, state) => ({
+      ...base,
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      borderColor: state.isFocused
+        ? "rgba(59, 130, 246, 0.5)"
+        : "rgba(255, 255, 255, 0.1)",
+      borderRadius: "0.75rem",
+      padding: "0.75rem",
+      boxShadow: state.isFocused ? "0 0 0 2px rgba(59, 130, 246, 0.2)" : "none",
+      backdropFilter: "blur(4px)",
+      minHeight: "auto",
+      "&:hover": {
+        borderColor: "rgba(59, 130, 246, 0.5)",
+      },
+    }),
+    singleValue: (base) => ({
+      ...base,
+      color: "white",
+    }),
+    menu: (base) => ({
+      ...base,
+      backgroundColor: "rgba(17, 24, 39, 0.95)",
+      borderRadius: "0.75rem",
+      border: "1px solid rgba(255, 255, 255, 0.1)",
+      backdropFilter: "blur(8px)",
+      zIndex: 9999,
+    }),
+    option: (base, { isFocused, isSelected }) => ({
+      ...base,
+      backgroundColor: isSelected
+        ? "rgba(59, 130, 246, 0.8)"
+        : isFocused
+        ? "rgba(59, 130, 246, 0.2)"
+        : "transparent",
+      color: "white",
+      "&:active": {
+        backgroundColor: "rgba(59, 130, 246, 0.6)",
+      },
+    }),
+    input: (base) => ({
+      ...base,
+      color: "white",
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: "rgba(156, 163, 175, 0.8)",
+    }),
+    dropdownIndicator: (base) => ({
+      ...base,
+      color: "rgba(156, 163, 175, 0.8)",
+      "&:hover": {
+        color: "white",
+      },
+    }),
+    clearIndicator: (base) => ({
+      ...base,
+      color: "rgba(156, 163, 175, 0.8)",
+      "&:hover": {
+        color: "white",
+      },
+    }),
   };
 
   return (
@@ -179,26 +267,24 @@ export default function AddExpense() {
                       <FiCheckCircle className="text-lg" />
                       Select Project
                     </label>
-                    <select
-                      value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
-                      required
-                      disabled={!projectStatus}
-                      className="w-full p-4 rounded-xl bg-white/5 border border-white/10 focus:border-blue-400/50 focus:ring-2 focus:ring-blue-400/20 backdrop-blur-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="" className="bg-gray-800">
-                        Select Project
-                      </option>
-                      {projects.map((project) => (
-                        <option
-                          key={project.pid}
-                          value={project.pid}
-                          className="bg-gray-800"
-                        >
-                          {project.pname} (ID: {project.pid})
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      options={projectOptions}
+                      value={selectedProject}
+                      onChange={handleProjectChange}
+                      styles={customSelectStyles}
+                      placeholder="Search or select project..."
+                      isSearchable={true}
+                      isClearable={true}
+                      isDisabled={!projectStatus}
+                      noOptionsMessage={() => "No projects found"}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {!projectStatus && (
+                      <p className="text-sm text-gray-400 mt-1">
+                        Please select a project status first
+                      </p>
+                    )}
                   </div>
 
                   {/* Amount Input */}

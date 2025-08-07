@@ -2,199 +2,89 @@ name: 🚀 CD Pipeline (HARD-CODED, TEST ONLY)
 
 on:
   workflow_run:
-    workflows: ["🔄 CI Pipeline"]  # Must match CI workflow name exactly
-    types:name: 🚀 CD Pipeline
-
-on:
-  workflow_run:
-    workflows: ["CI Pipeline"]  # Must exactly match your CI workflow name
+    workflows: ["CI Pipeline"]  # Must match exactly the name of your CI workflow
     types:
       - completed
-    branches:
-      - dev  # Trigger only when CI runs on dev branch
-
-jobs:
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-
-    steps:
-      - name: CD Trigger Test
-        run: echo "CD triggered via workflow_run on dev branch!"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # --- DEBUG KEY LENGTH ---
-      - name: Debug private key length
-        run: |
-          echo "Checking DEV_PI_KEY size..."
-          echo "${{ secrets.DEV_PI_KEY }}" | wc -c
-
-      # --- SETUP SSH KEY ---
-      - name: Setup SSH Key for Raspberry Pi
-        run: |
-          if [ -z "${{ secrets.DEV_PI_KEY }}" ]; then
-            echo "❌ DEV_PI_KEY is empty!"
-            exit 1
-          else
-            echo "✅ DEV_PI_KEY exists"
-          fi
-          mkdir -p ~/.ssh
-          # Use printf to preserve multiline formatting exactly
-          printf "%s\n" "${{ secrets.DEV_PI_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          # Add Pi host with correct port to known_hosts to avoid SSH prompt
-          ssh-keyscan -p 2225 -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts
-
-      # --- TEST SSH CONNECTION ---
-      - name: Test SSH Connection
-        run: ssh -vvv -o StrictHostKeyChecking=no -p 2225 ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo 'Connected successfully!'"
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build Multi-Architecture Images
-        run: |
-          echo "Building multi-arch frontend image (x86_64 + ARM64)..."
-          docker buildx build --platform linux/amd64,linux/arm64 \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:latest \
-            --push .
-
-          echo " Building multi-arch MySQL image (x86_64 + ARM64)..."
-          docker buildx build --platform linux/amd64,linux/arm64 \
-            -f Dockerfile.mysql \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:latest \
-            --push .
-
-        #fix the indentation for the next step
-      - name: Deploy to Raspberry Pi
-        run: |
-          echo " Deploying to Raspberry Pi..."
-
-          # Create deployment script on the runner
-          cat > deploy.sh << 'EOF'
-          #!/bin/bash
-          set -euxo pipefail
-
-          echo " Stopping existing containers..."
-          docker-compose down || true
-
-          echo " Cleaning up old images..."
-          docker image prune -f
-
-          echo " Pulling latest images..."
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}
-
-          echo "Updating docker-compose.yml with new image tags..."
-          sed -i 's|image: .*ukshati-frontend.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
-          sed -i 's|image: .*ukshati-database.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
-
-          echo " Starting updated containers..."
-          docker-compose up -d
-
-          echo " Waiting 30 seconds for services to stabilize..."
-          sleep 30
-
-          echo " Service status:"
-          docker-compose ps
-
-          echo "✅ Deployment completed!"
-          EOF
-
-          # Copy deploy script to Raspberry Pi
-          scp -o StrictHostKeyChecking=no -P 2225 deploy.sh ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/deploy.sh
-
-          # Run deploy script remotely on the Pi
-          ssh -o StrictHostKeyChecking=no -p 2225 ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "bash /home/${{ secrets.DEV_PI_USER }}/deploy.sh"
-
-      - name:  Notify Success
-        if: success()
-        run: echo "🎉 Deployment completed successfully!"
-
-      - name:  Notify Failure
-        if: failure()
-        run: echo "❌ Deployment failed!"
-      - completed
-    branches:
-      - dev   # Trigger only when CI runs on dev branch
 
 jobs:
   deploy:
     name: 🚀 Deploy
     runs-on: ubuntu-latest
 
-    steps:
-      - name: ✅ CD Trigger Test
-        run: echo "CD triggered via workflow_run on dev branch!"
+    if: >
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'dev'
+      }}
 
+    steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
       - name: 🔧 Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # --- DEBUG KEY LENGTH ---
-      - name: 🔑 Debug private key length
+      - name: 🔑 Debug DEV_PI_KEY length
         run: |
-          echo "Checking DEV_PI_KEY size..."
+          echo "🔍 Checking DEV_PI_KEY size:"
           echo "${{ secrets.DEV_PI_KEY }}" | wc -c
 
-      # --- SETUP SSH KEY ---
-      - name: 🔑 Setup SSH Key for Raspberry Pi
+      - name: 🔐 Setup SSH Key for Raspberry Pi
         run: |
           if [ -z "${{ secrets.DEV_PI_KEY }}" ]; then
             echo "❌ DEV_PI_KEY is empty!"
             exit 1
-          else
-            echo "✅ DEV_PI_KEY exists"
           fi
+
           mkdir -p ~/.ssh
-          # Remove Windows \r characters
           echo "${{ secrets.DEV_PI_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts
+
+          echo "🧠 Running ssh-keyscan for host: ${{ secrets.DEV_PI_HOST }}"
+          ssh-keyscan -p 2225 -H ${{ secrets.DEV_PI_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || {
+            echo "❌ ssh-keyscan failed for host: ${{ secrets.DEV_PI_HOST }}"
+            exit 1
+          }
+
+          echo "✅ SSH key setup complete"
 
       - name: 🔍 Test SSH Connection
-        run: ssh -o StrictHostKeyChecking=no -p 2225 \
-          ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo 'Connected successfully!'"
+        run: |
+          echo "🔌 Testing SSH connection..."
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -p 2225 \
+            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo '✅ Connected successfully!'"
 
       - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: 🏗 Build Multi-Architecture Images
         run: |
-          echo "🐳 Building multi-arch frontend image (x86_64 + ARM64)..."
+          echo "🐳 Building frontend image..."
           docker buildx build --platform linux/amd64,linux/arm64 \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:latest \
+            -t ${{ secrets.DOCKER_USERNAME }}/ukshati-frontend:${{ github.sha }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/ukshati-frontend:latest \
             --push .
 
-          echo "🐳 Building multi-arch MySQL image (x86_64 + ARM64)..."
+
+          echo "🐳 Building MySQL image..."
           docker buildx build --platform linux/amd64,linux/arm64 \
             -f Dockerfile.mysql \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:latest \
+            -t ${{ secrets.DOCKER_USERNAME }}/ukshati-database:${{ github.sha }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/ukshati-database:latest \
             --push .
+
 
       - name: 🚀 Deploy to Raspberry Pi
         run: |
           echo "🍓 Deploying to Raspberry Pi..."
+
           cat > deploy.sh << 'EOF'
           #!/bin/bash
+          set -euxo pipefail
+
           echo "🔄 Stopping existing containers..."
           docker-compose down || true
 
@@ -202,25 +92,33 @@ jobs:
           docker image prune -f
 
           echo "📥 Pulling latest images..."
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}
+          docker pull ${{ secrets.DOCKER_USERNAME }}/ukshati-frontend:${{ github.sha }}
+          docker pull ${{ secrets.DOCKER_USERNAME }}/ukshati-database:${{ github.sha }}
 
-          echo "🔄 Updating docker-compose.yml with new image tags..."
-          sed -i 's|image: .*ukshati-frontend.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
-          sed -i 's|image: .*ukshati-database.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
+          echo "🛠 Updating docker-compose.yml with new image tags..."
+          sed -i 's|image: .*ukshati-frontend.*|image: ${{ secrets.DOCKER_USERNAME }}/ukshati-frontend:${{ github.sha }}|g' docker-compose.yml
+          sed -i 's|image: .*ukshati-database.*|image: ${{ secrets.DOCKER_USERNAME }}/ukshati-database:${{ github.sha }}|g' docker-compose.yml
 
           echo "🚀 Starting updated containers..."
           docker-compose up -d
+
+          echo "⏳ Waiting for services to stabilize..."
           sleep 30
+
+          echo "📦 Running docker-compose ps:"
           docker-compose ps
+
           echo "✅ Deployment completed!"
           EOF
 
-          scp -o StrictHostKeyChecking=no -P 2225 deploy.sh \
+          # Copy deploy script to Pi
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -P 2225 deploy.sh \
             ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/
-          ssh -o StrictHostKeyChecking=no -p 2225 \
+
+          # Run deploy script remotely
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -p 2225 \
             ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} \
-            "cd /home/${{ secrets.DEV_PI_USER }}/ukshati && chmod +x deploy.sh && ./deploy.sh"
+            "cd /home/${{ secrets.DEV_PI_USER }}/Ukshati.2.0 && chmod +x deploy.sh && ./deploy.sh"
 
       - name: 📢 Notify Success
         if: success()

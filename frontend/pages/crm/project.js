@@ -1,16 +1,20 @@
-'use client';
+"use client";
 import BackButton from "@/components/BackButton";
 import { useEffect, useState } from "react";
 import { TableSkeleton, FormSkeleton } from "@/components/skeleton";
+import Select from "react-select";
+import { UserIcon, ChevronUpDownIcon } from "@heroicons/react/24/outline";
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [customerOptions, setCustomerOptions] = useState([]);
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(""); // End date is now optional
   const [status, setStatus] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editId, setEditId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -28,7 +32,7 @@ export default function Projects() {
       const data = await res.json();
 
       // Simulate data loading delay (remove in production if not needed)
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       setProjects(data);
     } catch (error) {
@@ -44,13 +48,31 @@ export default function Projects() {
       if (!res.ok) throw new Error("Failed to fetch customers");
       const data = await res.json();
       setCustomers(data.customers);
+
+      // Create options for react-select
+      const options = data.customers.map((customer) => ({
+        value: customer.cid,
+        label: customer.cname, // Simple text for selected value
+        displayLabel: (
+          <div className="flex items-center space-x-2">
+            <UserIcon className="w-4 h-4 text-gray-400" />
+            <span>
+              <span className="font-medium">{customer.cname}</span>
+              <span className="text-gray-400 ml-2">(ID: {customer.cid})</span>
+            </span>
+          </div>
+        ),
+        searchLabel: `${customer.cname} ${customer.cid}`, // For search functionality
+      }));
+      setCustomerOptions(options);
     } catch (error) {
       console.error("Error fetching customers:", error);
     }
   };
 
   const formatDate = (dateString) => {
-    if (!dateString || dateString === "TBD" || dateString === "null") return "TBD";
+    if (!dateString || dateString === "TBD" || dateString === "null")
+      return "TBD";
 
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "TBD"; // Guard against invalid dates
@@ -59,13 +81,78 @@ export default function Projects() {
     return date.toISOString().split("T")[0];
   };
 
-
   const statusOptions = [
     { value: "", label: "Select Status" },
-    { value: 'ongoing', label: 'Ongoing' },
-    { value: 'on hold', label: 'On Hold' },
-    { value: 'completed', label: 'Completed' }
+    { value: "ongoing", label: "Ongoing" },
+    { value: "on hold", label: "On Hold" },
+    { value: "completed", label: "Completed" },
   ];
+
+  // Handle customer selection from react-select
+  const handleCustomerChange = (selectedOption) => {
+    setSelectedCustomer(selectedOption);
+    setCustomerId(selectedOption?.value || "");
+  };
+
+  // Custom styles for react-select customer dropdown
+  const customSelectStyles = {
+    control: (base) => ({
+      ...base,
+      backgroundColor: "#1F2937",
+      borderColor: "#4B5563",
+      borderRadius: "0.375rem",
+      minHeight: "42px",
+      padding: "0",
+      boxShadow: "none",
+      "&:hover": { borderColor: "#6B7280" },
+    }),
+    valueContainer: (base) => ({
+      ...base,
+      padding: "8px 12px",
+    }),
+    singleValue: (base) => ({
+      ...base,
+      color: "white",
+      fontSize: "14px",
+    }),
+    menu: (base) => ({
+      ...base,
+      backgroundColor: "#374151",
+      borderRadius: "0.375rem",
+      border: "1px solid #4B5563",
+      zIndex: 9999,
+    }),
+    option: (base, { isFocused, isSelected }) => ({
+      ...base,
+      backgroundColor: isSelected
+        ? "#4B5563"
+        : isFocused
+        ? "#4B5563"
+        : "transparent",
+      color: "#E5E7EB",
+      "&:active": { backgroundColor: "#6B7280" },
+      fontSize: "14px",
+      padding: "8px 12px",
+    }),
+    input: (base) => ({
+      ...base,
+      color: "white",
+      fontSize: "14px",
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: "#9CA3AF",
+      fontSize: "14px",
+    }),
+    indicatorSeparator: () => ({
+      display: "none",
+    }),
+    dropdownIndicator: (base) => ({
+      ...base,
+      color: "#9CA3AF",
+      "&:hover": { color: "#D1D5DB" },
+    }),
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -98,7 +185,9 @@ export default function Projects() {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editId ? { pid: editId, ...projectData } : projectData),
+        body: JSON.stringify(
+          editId ? { pid: editId, ...projectData } : projectData
+        ),
       });
 
       if (!response.ok) {
@@ -120,6 +209,7 @@ export default function Projects() {
     setEndDate(""); // Reset end date
     setStatus("");
     setCustomerId("");
+    setSelectedCustomer(null);
     setEditId(null);
   };
 
@@ -130,10 +220,17 @@ export default function Projects() {
     setEndDate(project.end_date === "TBD" ? "" : formatDate(project.end_date)); // Handle "TBD" for editing
     setStatus(project.status);
     setCustomerId(project.cid);
-  };  
-  
+
+    // Set the selected customer for react-select
+    const customerOption = customerOptions.find(
+      (option) => option.value === project.cid
+    );
+    setSelectedCustomer(customerOption || null);
+  };
+
   const handleDelete = async (pid) => {
-    if (!window.confirm("Are you sure you want to delete this project?")) return;
+    if (!window.confirm("Are you sure you want to delete this project?"))
+      return;
 
     try {
       // First, try to delete without cascade
@@ -144,42 +241,54 @@ export default function Projects() {
       // Handle special case for related records
       if (response.status === 409) {
         const errorData = await response.json();
-          if (errorData.type === "related_records_exist") {
+        if (errorData.type === "related_records_exist") {
           let confirmMessage = `This project has ${errorData.relatedRecords} related stock transaction(s).`;
-          
+
           // Add spending information if available
           if (errorData.hasSpending) {
             confirmMessage += `\n\nWARNING: This project has ${errorData.spendingRecords} inventory spending record(s). Deleting this project will delete all spending history.`;
           }
-          
-          confirmMessage += "\n\nDo you want to delete the project and all related records?";
-          
+
+          confirmMessage +=
+            "\n\nDo you want to delete the project and all related records?";
+
           const confirmCascade = window.confirm(confirmMessage);
-          
+
           if (confirmCascade) {
             try {
               // Show loading state (optional)
               setLoading(true);
-              
+
               // User confirmed cascade delete
-              const cascadeResponse = await fetch(`/api/tasks?pid=${pid}&cascade=true`, {
-                method: "DELETE",
-              });
-                if (!cascadeResponse.ok) {
+              const cascadeResponse = await fetch(
+                `/api/tasks?pid=${pid}&cascade=true`,
+                {
+                  method: "DELETE",
+                }
+              );
+              if (!cascadeResponse.ok) {
                 const cascadeError = await cascadeResponse.json();
-                throw new Error(cascadeError.error || "Failed to delete project and related records");
+                throw new Error(
+                  cascadeError.error ||
+                    "Failed to delete project and related records"
+                );
               }
-              
+
               // Success message
-              let successMessage = "Project and related records deleted successfully.";
+              let successMessage =
+                "Project and related records deleted successfully.";
               if (errorData.hasSpending) {
-                successMessage += "\nInventory spending records have also been deleted.";
+                successMessage +=
+                  "\nInventory spending records have also been deleted.";
               }
               alert(successMessage);
               fetchProjects();
             } catch (cascadeError) {
               console.error("Error during cascade delete:", cascadeError);
-              alert(cascadeError.message || "Failed to delete project and related records");
+              alert(
+                cascadeError.message ||
+                  "Failed to delete project and related records"
+              );
             } finally {
               setLoading(false);
             }
@@ -251,7 +360,8 @@ export default function Projects() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                  /> {/* Removed required attribute */}
+                  />{" "}
+                  {/* Removed required attribute */}
                 </div>
                 <div className="input-group">
                   <label>Status</label>
@@ -269,18 +379,34 @@ export default function Projects() {
                 </div>
                 <div className="input-group">
                   <label>Customer</label>
-                  <select
-                    value={customerId}
-                    onChange={(e) => setCustomerId(e.target.value)}
-                    required
-                  >
-                    <option value="">Select Customer</option>
-                    {customers.map((customer) => (
-                      <option key={customer.cid} value={customer.cid}>
-                        {customer.cid} - {customer.cname}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    options={customerOptions}
+                    value={selectedCustomer}
+                    onChange={handleCustomerChange}
+                    styles={customSelectStyles}
+                    placeholder="Select Customer"
+                    isSearchable={true}
+                    isClearable={true}
+                    components={{
+                      DropdownIndicator: () => (
+                        <ChevronUpDownIcon className="w-4 h-4 text-gray-400 mr-2" />
+                      ),
+                      Option: ({ innerRef, innerProps, data }) => (
+                        <div
+                          ref={innerRef}
+                          {...innerProps}
+                          className="cursor-pointer"
+                        >
+                          {data.displayLabel}
+                        </div>
+                      ),
+                    }}
+                    filterOption={(option, inputValue) => {
+                      return option.data.searchLabel
+                        .toLowerCase()
+                        .includes(inputValue.toLowerCase());
+                    }}
+                  />
                 </div>
                 <button type="submit" className="submit-button">
                   {editId ? "Update Project" : "Add Project"}
@@ -322,7 +448,12 @@ export default function Projects() {
                       <td>{formatDate(project.start_date)}</td>
                       <td>{formatDate(project.end_date)}</td>
                       <td>
-                        <span className={`status-badge ${project.status.replace(' ', '-')}`}>
+                        <span
+                          className={`status-badge ${project.status.replace(
+                            " ",
+                            "-"
+                          )}`}
+                        >
                           {project.status}
                         </span>
                       </td>

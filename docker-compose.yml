@@ -1,21 +1,36 @@
+# This docker-compose.yml is optimized for a production environment.
+# It works seamlessly with your GitHub Actions CD pipeline.
+
+version: '3.8'
+
 services:
   nextjs:
-    build: .
+    # Use the image that will be pulled from Docker Hub.
+    # The image tag will be replaced by your deployment script's sed command.
+    image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-frontend:${{ github.sha }}
+    
+    # In production, we don't need the local code mounted into the container.
+    # The image built by the CI pipeline is self-contained.
+    # volumes:
+    #   - ./frontend:/app
+    #   - /app/node_modules
+
+    # In a production environment, it's common to expose port 80 (standard HTTP)
+    # and map it to your application's port 3000.
     ports:
-      - "3000:3000"
-    env_file:
-      - .env
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "80:3000"
+
+
+    # Use a production environment variable.
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      # It is a best practice to use environment variables for secrets.
+      # These values should be provided at runtime via a .env file on the server.
       - DB_HOST=db
-      - DB_USER=company
-      - DB_PASSWORD=Ukshati@123
-      - DB_NAME=company_db
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      
     depends_on:
       db:
         condition: service_healthy
@@ -23,34 +38,41 @@ services:
       - app-network
 
   db:
-    build:
-      context: .
-      dockerfile: Dockerfile.mysql
-    image: custom-mysql:8.0
+    # Use the image that will be pulled from Docker Hub, built by your pipeline.
+    # The image tag will be replaced by your deployment script's sed command.
+    image: ${{ secrets.DOCKERHUB_USERNAME }}/ukshati-database:${{ github.sha }}
     restart: always
+
+    # Database credentials should be managed as environment variables,
+    # often from a .env file on the server, not hardcoded.
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: company_db
-      MYSQL_USER: company
-      MYSQL_PASSWORD: Ukshati@123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    # The named volume is essential for data persistence in production.
     volumes:
       - mysql-data:/var/lib/mysql
+      # The entrypoint init scripts are useful for first-time setup.
       - ./db:/docker-entrypoint-initdb.d
+      # The backup scripts are also good for maintenance on the server.
       - ./backup.sh:/backup.sh
       - ./restore.sh:/restore.sh
       - ./backups:/backups
+
     networks:
       - app-network
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -u company --password=$$MYSQL_PASSWORD" ]
+      test: [ "CMD-SHELL", "mysqladmin ping -u ${MYSQL_USER} --password=${MYSQL_PASSWORD}" ]
       interval: 5s
       timeout: 10s
       retries: 10
 
+# Named volume for persistent database storage.
 volumes:
   mysql-data:
   backups:
-
 
 networks:
   app-network:

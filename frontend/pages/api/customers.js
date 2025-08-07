@@ -14,23 +14,23 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       // Check if id is provided in query params
       const { id } = req.query;
-      
+
       if (id) {
         // Get single customer by ID
         const [rows] = await connection.execute(
-          "SELECT cid, cname, cphone, alternate_phone, status, remark FROM customer WHERE cid = ?",
+          "SELECT cid, cname, cphone, location, status, remark FROM customer WHERE cid = ?",
           [id]
         );
-        
+
         if (rows.length === 0) {
           return res.status(404).json({ error: "Customer not found" });
         }
-        
+
         return res.status(200).json(rows[0]);
       } else {
         // Get all customers (existing behavior)
         const [rows] = await connection.execute(
-          "SELECT cid, cname, cphone, alternate_phone, status, remark FROM customer"
+          "SELECT cid, cname, cphone, location, status, remark FROM customer"
         );
         return res.status(200).json({ customers: rows });
       }
@@ -38,15 +38,17 @@ export default async function handler(req, res) {
 
     // POST new customer
     if (req.method === "POST") {
-      const { cname, cphone, alternate_phone, status, remark } = req.body;
+      const { cname, cphone, location, status, remark } = req.body;
 
-      if (!cname || !cphone) {
-        return res.status(400).json({ error: "Name and phone are required" });
+      if (!cname || !cphone || !location) {
+        return res
+          .status(400)
+          .json({ error: "Name, phone, and location are required" });
       }
 
       const [result] = await connection.execute(
-        "INSERT INTO customer (cname, cphone, alternate_phone, status, remark) VALUES (?, ?, ?, ?, ?)",
-        [cname, cphone, alternate_phone || null, status || "lead", remark || null]
+        "INSERT INTO customer (cname, cphone, location, status, remark) VALUES (?, ?, ?, ?, ?)",
+        [cname, cphone, location, status || "lead", remark || null]
       );
 
       const [newCustomer] = await connection.execute(
@@ -62,7 +64,8 @@ export default async function handler(req, res) {
       const { cid } = req.query;
       const updates = req.body;
 
-      if (!cid) return res.status(400).json({ error: "Customer ID is required" });
+      if (!cid)
+        return res.status(400).json({ error: "Customer ID is required" });
 
       const [existing] = await connection.execute(
         "SELECT * FROM customer WHERE cid = ?",
@@ -75,14 +78,14 @@ export default async function handler(req, res) {
 
       const mergedData = { ...existing[0], ...updates };
       await connection.execute(
-        "UPDATE customer SET cname = ?, cphone = ?, alternate_phone = ?, status = ?, remark = ? WHERE cid = ?",
+        "UPDATE customer SET cname = ?, cphone = ?, location = ?, status = ?, remark = ? WHERE cid = ?",
         [
           mergedData.cname,
           mergedData.cphone,
-          mergedData.alternate_phone || null,
+          mergedData.location,
           mergedData.status || "lead",
           mergedData.remark || null,
-          cid
+          cid,
         ]
       );
 
@@ -130,7 +133,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           message: "Customer deleted successfully",
           deletedInvoices: deletedInvoicesCount,
-          customerDeleted: deleteCustomerResult.affectedRows > 0
+          customerDeleted: deleteCustomerResult.affectedRows > 0,
         });
       } catch (error) {
         // Rollback the transaction in case of error
@@ -139,7 +142,7 @@ export default async function handler(req, res) {
         console.error("Delete error:", error);
         return res.status(500).json({
           error: "Failed to delete customer",
-          details: error.message
+          details: error.message,
         });
       }
     }

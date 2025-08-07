@@ -40,7 +40,7 @@ import {
 
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import Footer from "@/components/Footer";
-import { DashboardSkeleton, CardSkeleton, TableSkeleton, FormSkeleton, ChartSkeleton } from "@/components/skeleton";
+import { DashboardSkeleton, CardSkeleton, TableSkeleton, FormSkeleton, ChartSkeleton,ProjectCardSkeleton,EmployeeTableSkeleton,AnalyticsSkeleton } from "@/components/skeleton";
 
 ChartJS.register(
   CategoryScale,
@@ -131,8 +131,8 @@ const EmployeeModal = ({ isOpen, onClose, onSubmit, formData, setFormData, loadi
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
               required
             >
-              <option value="">Select Employee type</option>
-              <option value="admin">Admin</option>
+              <option value="">Select Employee Role</option>
+              <option value="admin">Admin select</option>
               <option value="employee">Employee</option>
             </select>
           </div>

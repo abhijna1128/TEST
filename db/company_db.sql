@@ -63,7 +63,7 @@ CREATE TABLE `customer` (
   `cid` int NOT NULL AUTO_INCREMENT,
   `cname` varchar(255) NOT NULL,
   `cphone` varchar(15) NOT NULL,
-  `alternate_phone` varchar(15) DEFAULT NULL,
+  `location` varchar(255) NOT NULL,
   `status` enum('lead','customer') NOT NULL DEFAULT 'customer',
   `follow_up_date` date DEFAULT NULL,
   `join_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -78,9 +78,9 @@ CREATE TABLE `customer` (
 
 LOCK TABLES `customer` WRITE;
 /*!40000 ALTER TABLE `customer` DISABLE KEYS */;
-INSERT INTO `customer` (`cid`, `cname`, `cphone`, `status`) VALUES
-(1, 'Sample Customer 1', '9876543210', 'customer'),
-(2, 'Sample Customer 2', '9876543211', 'customer');
+INSERT INTO `customer` (`cid`, `cname`, `cphone`, `location`, `status`) VALUES
+(1, 'Sample Customer 1', '9876543210', 'Mumbai, Maharashtra', 'customer'),
+(2, 'Sample Customer 2', '9876543211', 'Delhi, India', 'customer');
 /*!40000 ALTER TABLE `customer` ENABLE KEYS */;
 UNLOCK TABLES;
 
