@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "🔌 Testing SSH connection..."
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -p 2225 \
-            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} "echo '✅ Connected successfully!'"
+            Ukshati@${{ secrets.DEV_PI_HOST }} "echo '✅ Connected successfully!'"
 
       - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v3
@@ -67,7 +67,6 @@ jobs:
             -t ${{ secrets.DOCKER_USERNAME }}/ukshati-frontend:latest \
             --push .
 
-
           echo "🐳 Building MySQL image..."
           docker buildx build --platform linux/amd64,linux/arm64 \
             -f Dockerfile.mysql \
@@ -75,11 +74,11 @@ jobs:
             -t ${{ secrets.DOCKER_USERNAME }}/ukshati-database:latest \
             --push .
 
-
       - name: 🚀 Deploy to Raspberry Pi
         run: |
           echo "🍓 Deploying to Raspberry Pi..."
 
+          # Create deploy.sh locally
           cat > deploy.sh << 'EOF'
           #!/bin/bash
           set -euxo pipefail
@@ -110,14 +109,18 @@ jobs:
           echo "✅ Deployment completed!"
           EOF
 
+          # Ensure target folder exists on Pi
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -p 2225 \
+            Ukshati@${{ secrets.DEV_PI_HOST }} "mkdir -p /home/Ukshati/Ukshati.2.0"
+
           # Copy deploy script to Pi
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -P 2225 deploy.sh \
-            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }}:/home/${{ secrets.DEV_PI_USER }}/
+            Ukshati@${{ secrets.DEV_PI_HOST }}:/home/Ukshati/Ukshati.2.0
 
           # Run deploy script remotely
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -p 2225 \
-            ${{ secrets.DEV_PI_USER }}@${{ secrets.DEV_PI_HOST }} \
-            "cd /home/${{ secrets.DEV_PI_USER }}/Ukshati.2.0 && chmod +x deploy.sh && ./deploy.sh"
+            Ukshati@${{ secrets.DEV_PI_HOST }} \
+            "cd /home/Ukshati/Ukshati.2.0 && chmod +x deploy.sh && ./deploy.sh"
 
       - name: 📢 Notify Success
         if: success()
