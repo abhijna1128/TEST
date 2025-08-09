@@ -1,5 +1,4 @@
-name: 🚀 CD Pipeline (HARD-CODED, TEST ONLY)
-
+name: 🚀 CD Pipeline
 on:
   workflow_run:
     workflows: ["CI Pipeline"]  # Must match exactly the name of your CI workflow
